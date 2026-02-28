@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Corporate Office Simulator — VP of Product</title>
+    <meta name="description" content="A first-person 3D corporate office simulation with AI executive assistants" />
+    <link rel="stylesheet" href="/src/styles.css" />
+</head>
+
+<body>
+    <canvas id="game-canvas"></canvas>
+
+    <!-- Crosshair -->
+    <div id="crosshair">+</div>
+
+    <!-- Start overlay -->
+    <div id="start-overlay">
+        <div class="start-content">
+            <h1>Corporate Office Simulator</h1>
+            <p class="role-badge">VP OF PRODUCT</p>
+            <p class="subtitle">Navigate the office. Interact with your AI assistants.<br />Manage tasks. Uncover the
+                truth.</p>
+            <button id="start-btn">CLICK TO ENTER</button>
+            <div class="controls-hint">
+                <span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> Move</span>
+                <span><kbd>Mouse</kbd> Look</span>
+                <span><kbd>E</kbd> Interact</span>
+                <span><kbd>ESC</kbd> Menu</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Dashboard UI -->
+    <div id="dashboard-container" class="hidden"></div>
+
+    <!-- Proximity hint -->
+    <div id="proximity-hint" class="hidden">
+        <span class="hint-icon">💬</span>
+        <span class="hint-text">Press <kbd>E</kbd> to interact</span>
+    </div>
+
+    <!-- HUD -->
+    <div id="hud">
+        <div class="hud-role">VP OF PRODUCT</div>
+    </div>
+
+    <script type="module" src="/src/main.js"></script>
+</body>
+
+</html>
