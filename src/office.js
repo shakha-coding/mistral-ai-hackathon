@@ -169,9 +169,13 @@ function loadCharacter(scene, agentId, modelPath, position) {
         const scale = targetHeight / height;
         model.scale.set(scale, scale, scale);
 
-        // Position: south side of desk (same as chair at +0.65), facing south toward player
+        // Position: south side of desk, at chair seat height
+        // Chair seat is at y=0.45, so we lower the model slightly to sit
         model.position.set(position.x, 0, position.z + 0.65);
         model.rotation.y = Math.PI; // Face south (toward player)
+
+        // Attempt to pose the skeleton into a sitting position
+        poseSitting(model);
 
         // Custom material tinting
         model.traverse((child) => {
@@ -181,18 +185,8 @@ function loadCharacter(scene, agentId, modelPath, position) {
             }
         });
 
-        // Play idle animation if available
-        if (gltf.animations && gltf.animations.length > 0) {
-            const mixer = new THREE.AnimationMixer(model);
-            animMixers.push(mixer);
-            const idle = gltf.animations.find(a =>
-                a.name.toLowerCase().includes('idle') ||
-                a.name.toLowerCase().includes('stand')
-            ) || gltf.animations[0];
-            const action = mixer.clipAction(idle);
-            action.play();
-            action.setEffectiveTimeScale(0.5);
-        }
+        // Don't play animation — we want the sitting pose to stay
+        // (animations would override bone poses)
 
         scene.add(model);
 
@@ -208,6 +202,73 @@ function loadCharacter(scene, agentId, modelPath, position) {
             buildFallbackCharacter(scene, agentId, position);
         }
     );
+}
+
+/**
+ * Bend a humanoid model's skeleton into a sitting pose.
+ * Works by finding common bone names (mixamo / generic rigs)
+ * and rotating the upper legs forward ~90° and lower legs back ~90°.
+ */
+function poseSitting(model) {
+    const bones = {};
+    model.traverse((child) => {
+        if (child.isBone) {
+            const n = child.name.toLowerCase();
+            bones[n] = child;
+        }
+    });
+
+    // Common bone name patterns across different rigs
+    const hipNames = ['hips', 'mixamorighips', 'pelvis', 'root'];
+    const lUpperLeg = ['leftupleg', 'mixamorigleftupleg', 'left_upper_leg', 'lupleg', 'l_thigh'];
+    const rUpperLeg = ['rightupleg', 'mixamorigrightupleg', 'right_upper_leg', 'rupleg', 'r_thigh'];
+    const lLowerLeg = ['leftleg', 'mixamorigleftleg', 'left_lower_leg', 'lleg', 'l_calf'];
+    const rLowerLeg = ['rightleg', 'mixamorigrightleg', 'right_lower_leg', 'rleg', 'r_calf'];
+    const spineName = ['spine', 'mixamorigspine', 'spine1'];
+
+    const findBone = (names) => {
+        for (const name of names) {
+            if (bones[name]) return bones[name];
+        }
+        return null;
+    };
+
+    const hip = findBone(hipNames);
+    const lUpper = findBone(lUpperLeg);
+    const rUpper = findBone(rUpperLeg);
+    const lLower = findBone(lLowerLeg);
+    const rLower = findBone(rLowerLeg);
+    const spine = findBone(spineName);
+
+    if (lUpper && rUpper) {
+        // Bend upper legs forward ~90° for sitting
+        lUpper.rotation.x = -Math.PI / 2;
+        rUpper.rotation.x = -Math.PI / 2;
+        console.log('[Office] Posed upper legs for sitting');
+    }
+
+    if (lLower && rLower) {
+        // Bend lower legs back ~90° (knees bent)
+        lLower.rotation.x = Math.PI / 2;
+        rLower.rotation.x = Math.PI / 2;
+        console.log('[Office] Posed lower legs for sitting');
+    }
+
+    if (hip) {
+        // Lower the hips to seat height
+        hip.position.y -= 0.15;
+        console.log('[Office] Lowered hips for sitting');
+    }
+
+    if (spine) {
+        // Slight forward lean for natural sitting
+        spine.rotation.x = 0.05;
+    }
+
+    // If no bones found, log it
+    if (!lUpper && !rUpper) {
+        console.log('[Office] No leg bones found — model will stand. Bone names:', Object.keys(bones).join(', '));
+    }
 }
 
 function buildNameplate(scene, isAlpha, position) {
@@ -294,13 +355,10 @@ function buildAssistantWorkstation(scene, agentId, pos) {
     g.add(mesh(bx(0.25, 0.004, 0.35), M.paper, isAlpha ? -0.7 : 0.7, 0.79, 0.1));
     g.add(mesh(bx(0.01, 0.008, 0.14), M.pen, isAlpha ? -0.5 : 0.5, 0.79, 0.25));
 
-    // ── Chair — SOUTH side of desk, seat faces north toward screen ──
+    // ── Chair — SOUTH side of desk, rotated 180° so backrest faces player ──
     const chair = buildChair();
     chair.position.set(0, 0, 0.65);  // south of desk center
-    // rotation 0 = chair backrest faces -Z (north side behind them),
-    // seat faces +Z (south) → but we want seat facing north.
-    // The buildChair() backrest is at z=-0.24 (north), seat at z=0 → occupant faces -Z (north). ✓
-    // No rotation needed — default orientation means occupant faces north toward screen.
+    chair.rotation.y = Math.PI;      // Rotate 180° — backrest now faces south (player)
     g.add(chair);
 
     g.position.copy(pos);
@@ -334,9 +392,10 @@ function buildExtraWorkstation(scene, x, z, rotation) {
     // Coffee mug
     g.add(mesh(cy(0.025, 0.02, 0.06, 8), M.mug, 0.55, 0.82, 0));
 
-    // Chair
+    // Chair — rotated 180°
     const chair = buildChair();
     chair.position.set(0, 0, 0.6);
+    chair.rotation.y = Math.PI;  // Rotate 180°
     g.add(chair);
 
     g.position.set(x, 0, z);
@@ -438,12 +497,11 @@ function buildWindows(scene) {
         const x = -6 + i * 6;
         addMesh(scene, new THREE.PlaneGeometry(2.4, 1.8), M.skyGlow, x, 3, -7.86);
         addMesh(scene, new THREE.PlaneGeometry(2.4, 1.8), M.glass, x, 3, -7.83);
-        // Frame
-        addMesh(scene, bx(2.5, 0.05, 0.05), M.wFrame, x, 3.92, -7.8);
-        addMesh(scene, bx(2.5, 0.05, 0.05), M.wFrame, x, 2.08, -7.8);
-        addMesh(scene, bx(0.05, 1.9, 0.05), M.wFrame, x - 1.22, 3, -7.8);
-        addMesh(scene, bx(0.05, 1.9, 0.05), M.wFrame, x + 1.22, 3, -7.8);
-        addMesh(scene, bx(0.05, 1.9, 0.05), M.wFrame, x, 3, -7.8);
+        // Frame — top, bottom, left, right only (no center divider)
+        addMesh(scene, bx(2.5, 0.05, 0.05), M.wFrame, x, 3.92, -7.8);  // top
+        addMesh(scene, bx(2.5, 0.05, 0.05), M.wFrame, x, 2.08, -7.8);  // bottom
+        addMesh(scene, bx(0.05, 1.9, 0.05), M.wFrame, x - 1.22, 3, -7.8); // left
+        addMesh(scene, bx(0.05, 1.9, 0.05), M.wFrame, x + 1.22, 3, -7.8); // right
         // Window sill
         addMesh(scene, bx(2.6, 0.04, 0.15), M.wFrame, x, 2.06, -7.72);
     }
