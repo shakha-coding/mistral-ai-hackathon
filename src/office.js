@@ -169,9 +169,8 @@ function loadCharacter(scene, agentId, modelPath, position) {
         const scale = targetHeight / height;
         model.scale.set(scale, scale, scale);
 
-        // Position: on the near (south) side of desk, facing south toward player
-        // The desk is at pos.z, assistant sits at pos.z + 0.7 (south side)
-        model.position.set(position.x, 0, position.z + 0.7);
+        // Position: south side of desk (same as chair at +0.65), facing south toward player
+        model.position.set(position.x, 0, position.z + 0.65);
         model.rotation.y = Math.PI; // Face south (toward player)
 
         // Custom material tinting
@@ -197,7 +196,7 @@ function loadCharacter(scene, agentId, modelPath, position) {
 
         scene.add(model);
 
-        // Nameplate
+        // Nameplate — above the desk front, visible to player
         buildNameplate(scene, isAlpha, position);
 
         console.log(`[Office] Loaded ${agentId}: ${modelPath} (scale ${scale.toFixed(3)})`);
@@ -224,7 +223,8 @@ function buildNameplate(scene, isAlpha, position) {
     const tex = new THREE.CanvasTexture(canvas);
     const plate = new THREE.Mesh(new THREE.PlaneGeometry(0.55, 0.14),
         new THREE.MeshStandardMaterial({ map: tex }));
-    plate.position.set(position.x, 0.84, position.z + 1.0);
+    // Nameplate on the south edge of desk, visible to player walking up
+    plate.position.set(position.x, 0.84, position.z + 0.56);
     scene.add(plate);
 }
 
@@ -240,55 +240,67 @@ function buildFallbackCharacter(scene, agentId, position) {
     head.scale.set(0.88, 0.95, 0.85); g.add(head);
     const hairMesh = mesh(sp(0.11, 14, 10), hair, 0, 1.07, -0.02);
     hairMesh.scale.set(1, 1.05, 0.92); g.add(hairMesh);
-    g.position.set(position.x, 0, position.z + 0.7);
+    // Same position as chair (south side of desk)
+    g.position.set(position.x, 0, position.z + 0.65);
     scene.add(g);
     buildNameplate(scene, isAlpha, position);
 }
 
 /* ═══════════════════════════════════════════
-   ASSISTANT WORKSTATION (rotated 180°)
-   Screen faces NORTH (wall), assistant sits SOUTH (player) side
+   ASSISTANT WORKSTATION
+   Layout (all positions relative to group origin at desk center):
+
+   NORTH (z = -0.55)  ← Desk back panel + Monitor (screen faces south)
+   CENTER (z = 0)     ← Desk top surface
+   SOUTH  (z = +0.55) ← Front panel + Keyboard + Chair + Character
+
+   Character faces SOUTH (toward player)
    ═══════════════════════════════════════════ */
 
 function buildAssistantWorkstation(scene, agentId, pos) {
     const isAlpha = agentId === 'alpha';
     const g = new THREE.Group();
 
-    // ── Desk ── (rotated 180°: front panel faces north/wall)
+    // ── Desk surface ──
     g.add(mesh(bx(2.4, 0.06, 1.1), M.deskTop, 0, 0.76, 0));
-    // Back panel now faces SOUTH (player) — but since desk is rotated, this is the front panel facing NORTH
-    g.add(mesh(bx(2.4, 0.5, 0.04), M.desk, 0, 0.5, 0.53));  // panel on south side
+
+    // Back panel on NORTH side
+    g.add(mesh(bx(2.4, 0.5, 0.04), M.desk, 0, 0.5, -0.53));
+    // Side panels
     g.add(mesh(bx(0.04, 0.5, 1.06), M.desk, -1.18, 0.5, 0));
     g.add(mesh(bx(0.04, 0.5, 1.06), M.desk, 1.18, 0.5, 0));
+    // Legs
     [[-1.1, -0.5], [-1.1, 0.5], [1.1, -0.5], [1.1, 0.5]].forEach(([lx, lz]) => {
         g.add(mesh(bx(0.04, 0.76, 0.04), M.leg, lx, 0.38, lz));
     });
 
-    // Monitor faces NORTH (away from player)
-    g.add(mesh(bx(0.85, 0.5, 0.02), M.monitor, 0, 1.3, 0.15));
+    // ── Monitor on NORTH end of desk, screen faces SOUTH (toward assistant) ──
+    g.add(mesh(bx(0.85, 0.5, 0.02), M.monitor, 0, 1.3, -0.3));    // monitor body
     const scr = new THREE.Mesh(new THREE.PlaneGeometry(0.78, 0.44),
         isAlpha ? M.screenA : M.screenB);
-    scr.position.set(0, 1.3, 0.17);
-    scr.rotation.y = Math.PI; // Screen content faces north
+    scr.position.set(0, 1.3, -0.28);  // screen glows toward south (no rotation = faces +Z)
     g.add(scr);
-    g.add(mesh(bx(0.05, 0.25, 0.05), M.monitor, 0, 0.93, 0.15));
-    g.add(mesh(bx(0.22, 0.015, 0.14), M.monitor, 0, 0.795, 0.15));
+    g.add(mesh(bx(0.05, 0.25, 0.05), M.monitor, 0, 0.93, -0.3));  // stand
+    g.add(mesh(bx(0.22, 0.015, 0.14), M.monitor, 0, 0.795, -0.3)); // base
 
-    // Keyboard + mouse — on north side of desk (where assistant faces from south)
-    g.add(mesh(bx(0.42, 0.012, 0.14), M.monitor, -0.05, 0.8, -0.2));
-    g.add(mesh(bx(0.065, 0.01, 0.09), M.monitor, 0.35, 0.8, -0.2));
+    // ── Keyboard + mouse on SOUTH end of desk (in front of assistant) ──
+    g.add(mesh(bx(0.42, 0.012, 0.14), M.monitor, -0.05, 0.8, 0.2));
+    g.add(mesh(bx(0.065, 0.01, 0.09), M.monitor, 0.35, 0.8, 0.2));
 
-    // Coffee mug
-    g.add(mesh(cy(0.03, 0.025, 0.07, 10), M.mug, isAlpha ? 0.85 : -0.85, 0.82, -0.15));
+    // Coffee mug — south side within reach
+    g.add(mesh(cy(0.03, 0.025, 0.07, 10), M.mug, isAlpha ? 0.85 : -0.85, 0.82, 0.15));
 
-    // Papers + pen
-    g.add(mesh(bx(0.25, 0.004, 0.35), M.paper, isAlpha ? -0.7 : 0.7, 0.79, -0.1));
-    g.add(mesh(bx(0.01, 0.008, 0.14), M.pen, isAlpha ? -0.5 : 0.5, 0.79, 0.05));
+    // Papers + pen — south side
+    g.add(mesh(bx(0.25, 0.004, 0.35), M.paper, isAlpha ? -0.7 : 0.7, 0.79, 0.1));
+    g.add(mesh(bx(0.01, 0.008, 0.14), M.pen, isAlpha ? -0.5 : 0.5, 0.79, 0.25));
 
-    // Chair — on south side of desk, facing north (toward screen)
+    // ── Chair — SOUTH side of desk, seat faces north toward screen ──
     const chair = buildChair();
-    chair.position.set(0, 0, -0.65);
-    chair.rotation.y = Math.PI; // Faces north toward monitor
+    chair.position.set(0, 0, 0.65);  // south of desk center
+    // rotation 0 = chair backrest faces -Z (north side behind them),
+    // seat faces +Z (south) → but we want seat facing north.
+    // The buildChair() backrest is at z=-0.24 (north), seat at z=0 → occupant faces -Z (north). ✓
+    // No rotation needed — default orientation means occupant faces north toward screen.
     g.add(chair);
 
     g.position.copy(pos);
