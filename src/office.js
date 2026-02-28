@@ -147,128 +147,128 @@ export function buildOffice(scene) {
     buildWallArt(scene);
     buildClock(scene);
 
-    // Load real 3D character models
-    loadCharacter(scene, 'alpha', '/models/michelle.glb', AGENT_POSITIONS.alpha);
-    loadCharacter(scene, 'beta', '/models/woman1.glb', AGENT_POSITIONS.beta);
+    // Build seated office assistant characters (procedural — reliable & professional)
+    buildSeatedCharacter(scene, 'alpha', AGENT_POSITIONS.alpha);
+    buildSeatedCharacter(scene, 'beta', AGENT_POSITIONS.beta);
 }
 
 /* ═══════════════════════════════════════════
-   CHARACTER LOADING (GLB)
+   SEATED OFFICE WOMAN — Procedural character
+   Already posed in sitting position, professional look
    ═══════════════════════════════════════════ */
 
-function loadCharacter(scene, agentId, modelPath, position) {
+function buildSeatedCharacter(scene, agentId, deskPos) {
     const isAlpha = agentId === 'alpha';
+    const g = new THREE.Group();
 
-    loader.load(modelPath, (gltf) => {
-        const model = gltf.scene;
-
-        // Scale to human height (~1.6m)
-        const box3 = new THREE.Box3().setFromObject(model);
-        const height = box3.max.y - box3.min.y;
-        const targetHeight = 1.6;
-        const scale = targetHeight / height;
-        model.scale.set(scale, scale, scale);
-
-        // Position: south side of desk, at chair seat height
-        // Chair seat is at y=0.45, so we lower the model slightly to sit
-        model.position.set(position.x, 0, position.z + 0.65);
-        model.rotation.y = Math.PI; // Face south (toward player)
-
-        // Attempt to pose the skeleton into a sitting position
-        poseSitting(model);
-
-        // Custom material tinting
-        model.traverse((child) => {
-            if (child.isMesh) {
-                child.castShadow = true;
-                child.receiveShadow = true;
-            }
-        });
-
-        // Don't play animation — we want the sitting pose to stay
-        // (animations would override bone poses)
-
-        scene.add(model);
-
-        // Nameplate — above the desk front, visible to player
-        buildNameplate(scene, isAlpha, position);
-
-        console.log(`[Office] Loaded ${agentId}: ${modelPath} (scale ${scale.toFixed(3)})`);
-    },
-        undefined,
-        (err) => {
-            console.warn(`[Office] Failed to load ${modelPath}:`, err);
-            // Fallback — primitive character
-            buildFallbackCharacter(scene, agentId, position);
-        }
-    );
-}
-
-/**
- * Bend a humanoid model's skeleton into a sitting pose.
- * Works by finding common bone names (mixamo / generic rigs)
- * and rotating the upper legs forward ~90° and lower legs back ~90°.
- */
-function poseSitting(model) {
-    const bones = {};
-    model.traverse((child) => {
-        if (child.isBone) {
-            const n = child.name.toLowerCase();
-            bones[n] = child;
-        }
+    // ── Materials ──
+    const skin = new THREE.MeshStandardMaterial({
+        color: isAlpha ? 0xf5cba7 : 0xd4a574, roughness: 0.75, metalness: 0.02
+    });
+    const blazer = new THREE.MeshStandardMaterial({
+        color: isAlpha ? 0x1a3a5c : 0x8b1a2b, roughness: 0.55, metalness: 0.05
+    });
+    const shirt = new THREE.MeshStandardMaterial({
+        color: isAlpha ? 0xe8e8f0 : 0xf0e8e0, roughness: 0.65
+    });
+    const skirt = new THREE.MeshStandardMaterial({
+        color: isAlpha ? 0x1a3050 : 0x2a1a2a, roughness: 0.5
+    });
+    const shoe = new THREE.MeshStandardMaterial({
+        color: isAlpha ? 0x1a1a22 : 0x3a1a1a, roughness: 0.4, metalness: 0.1
+    });
+    const hair = new THREE.MeshStandardMaterial({
+        color: isAlpha ? 0xd4a535 : 0x0a0a14, roughness: 0.45, metalness: 0.08
+    });
+    const lip = new THREE.MeshStandardMaterial({
+        color: isAlpha ? 0xc08080 : 0xa06060, roughness: 0.6
     });
 
-    // Common bone name patterns across different rigs
-    const hipNames = ['hips', 'mixamorighips', 'pelvis', 'root'];
-    const lUpperLeg = ['leftupleg', 'mixamorigleftupleg', 'left_upper_leg', 'lupleg', 'l_thigh'];
-    const rUpperLeg = ['rightupleg', 'mixamorigrightupleg', 'right_upper_leg', 'rupleg', 'r_thigh'];
-    const lLowerLeg = ['leftleg', 'mixamorigleftleg', 'left_lower_leg', 'lleg', 'l_calf'];
-    const rLowerLeg = ['rightleg', 'mixamorigrightleg', 'right_lower_leg', 'rleg', 'r_calf'];
-    const spineName = ['spine', 'mixamorigspine', 'spine1'];
+    // Seat height from chair = 0.45
+    const seatY = 0.45;
 
-    const findBone = (names) => {
-        for (const name of names) {
-            if (bones[name]) return bones[name];
-        }
-        return null;
-    };
+    // ── Torso (blazer) ── sitting upright on chair
+    const torso = mesh(bx(0.32, 0.36, 0.18), blazer, 0, seatY + 0.22, 0);
+    torso.scale.set(1, 1, 1); g.add(torso);
 
-    const hip = findBone(hipNames);
-    const lUpper = findBone(lUpperLeg);
-    const rUpper = findBone(rUpperLeg);
-    const lLower = findBone(lLowerLeg);
-    const rLower = findBone(rLowerLeg);
-    const spine = findBone(spineName);
+    // Shirt collar visible at top of blazer
+    g.add(mesh(bx(0.16, 0.06, 0.12), shirt, 0, seatY + 0.4, 0.02));
 
-    if (lUpper && rUpper) {
-        // Bend upper legs forward ~90° for sitting
-        lUpper.rotation.x = -Math.PI / 2;
-        rUpper.rotation.x = -Math.PI / 2;
-        console.log('[Office] Posed upper legs for sitting');
+    // ── Neck ──
+    g.add(mesh(cy(0.04, 0.035, 0.08, 10), skin, 0, seatY + 0.45, 0));
+
+    // ── Head ──
+    const head = mesh(sp(0.1, 20, 16), skin, 0, seatY + 0.56, 0);
+    head.scale.set(0.9, 1.0, 0.88); g.add(head);
+
+    // ── Eyes ──
+    const eyeMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.2 });
+    const pupilMat = new THREE.MeshStandardMaterial({
+        color: isAlpha ? 0x3070b0 : 0x201a10, roughness: 0.1
+    });
+    [-1, 1].forEach(s => {
+        g.add(mesh(sp(0.018, 8, 6), eyeMat, s * 0.032, seatY + 0.58, 0.07));
+        g.add(mesh(sp(0.01, 6, 5), pupilMat, s * 0.032, seatY + 0.58, 0.082));
+    });
+
+    // ── Lips ──
+    const lips = mesh(bx(0.035, 0.012, 0.015), lip, 0, seatY + 0.505, 0.08);
+    lips.scale.set(1.2, 1, 1); g.add(lips);
+
+    // ── Nose ──
+    g.add(mesh(bx(0.015, 0.025, 0.02), skin, 0, seatY + 0.545, 0.085));
+
+    // ── Hair ──
+    if (isAlpha) {
+        // Sophia: blonde, shoulder-length
+        const hairTop = mesh(sp(0.105, 16, 12), hair, 0, seatY + 0.59, -0.01);
+        hairTop.scale.set(1.02, 1.06, 0.95); g.add(hairTop);
+        // Side hair flowing down
+        [-1, 1].forEach(s => {
+            g.add(mesh(bx(0.04, 0.18, 0.06), hair, s * 0.08, seatY + 0.45, -0.02));
+        });
+        // Back hair
+        g.add(mesh(bx(0.12, 0.2, 0.05), hair, 0, seatY + 0.44, -0.06));
+    } else {
+        // Yuki: black, up in a bun
+        const hairTop = mesh(sp(0.108, 16, 12), hair, 0, seatY + 0.59, -0.015);
+        hairTop.scale.set(1.0, 1.04, 0.93); g.add(hairTop);
+        // Bun on top
+        g.add(mesh(sp(0.06, 10, 8), hair, 0, seatY + 0.7, -0.03));
+        // Bangs
+        g.add(mesh(bx(0.14, 0.03, 0.04), hair, 0, seatY + 0.63, 0.06));
     }
 
-    if (lLower && rLower) {
-        // Bend lower legs back ~90° (knees bent)
-        lLower.rotation.x = Math.PI / 2;
-        rLower.rotation.x = Math.PI / 2;
-        console.log('[Office] Posed lower legs for sitting');
-    }
+    // ── Upper arms ── resting on desk, bent at elbows
+    [-1, 1].forEach(s => {
+        // Upper arm (shoulder to elbow, angled forward toward desk)
+        const upperArm = mesh(bx(0.06, 0.06, 0.18), blazer, s * 0.2, seatY + 0.2, -0.12);
+        upperArm.rotation.x = -0.3;
+        g.add(upperArm);
+        // Forearm (resting forward on desk surface)
+        g.add(mesh(bx(0.05, 0.05, 0.18), shirt, s * 0.15, seatY + 0.33, -0.28));
+        // Hand resting on desk
+        g.add(mesh(bx(0.04, 0.02, 0.06), skin, s * 0.12, seatY + 0.34, -0.38));
+    });
 
-    if (hip) {
-        // Lower the hips to seat height
-        hip.position.y -= 0.15;
-        console.log('[Office] Lowered hips for sitting');
-    }
+    // ── Lap / Skirt (horizontal thighs) ──
+    g.add(mesh(bx(0.3, 0.1, 0.32), skirt, 0, seatY + 0.0, -0.14));
 
-    if (spine) {
-        // Slight forward lean for natural sitting
-        spine.rotation.x = 0.05;
-    }
+    // ── Lower legs (hanging down from seat edge) ──
+    [-1, 1].forEach(s => {
+        // Calf
+        g.add(mesh(bx(0.06, 0.3, 0.06), skirt, s * 0.09, seatY - 0.2, -0.28));
+        // Shoe
+        g.add(mesh(bx(0.06, 0.04, 0.12), shoe, s * 0.09, seatY - 0.37, -0.26));
+    });
 
-    // If no bones found, log it
-    if (!lUpper && !rUpper) {
-        console.log('[Office] No leg bones found — model will stand. Bone names:', Object.keys(bones).join(', '));
-    }
+    // Position the group: south side of desk, sitting in chair
+    g.position.set(deskPos.x, 0, deskPos.z + 0.65);
+    g.castShadow = true;
+    scene.add(g);
+
+    // Nameplate
+    buildNameplate(scene, isAlpha, deskPos);
 }
 
 function buildNameplate(scene, isAlpha, position) {
@@ -284,27 +284,8 @@ function buildNameplate(scene, isAlpha, position) {
     const tex = new THREE.CanvasTexture(canvas);
     const plate = new THREE.Mesh(new THREE.PlaneGeometry(0.55, 0.14),
         new THREE.MeshStandardMaterial({ map: tex }));
-    // Nameplate on the south edge of desk, visible to player walking up
     plate.position.set(position.x, 0.84, position.z + 0.56);
     scene.add(plate);
-}
-
-function buildFallbackCharacter(scene, agentId, position) {
-    const isAlpha = agentId === 'alpha';
-    const skin = new THREE.MeshStandardMaterial({ color: isAlpha ? 0xfdd9b5 : 0xf5deb3, roughness: 0.85 });
-    const dress = new THREE.MeshStandardMaterial({ color: isAlpha ? 0x2c5282 : 0xcc2244, roughness: 0.6 });
-    const hair = new THREE.MeshStandardMaterial({ color: isAlpha ? 0xe8c861 : 0x0a0a12, roughness: 0.5 });
-    const g = new THREE.Group();
-    g.add(mesh(cy(0.14, 0.12, 0.35, 14), dress, 0, 0.68, 0));
-    g.add(mesh(cy(0.035, 0.04, 0.08, 10), skin, 0, 0.9, 0));
-    const head = mesh(sp(0.1, 18, 14), skin, 0, 1.04, 0);
-    head.scale.set(0.88, 0.95, 0.85); g.add(head);
-    const hairMesh = mesh(sp(0.11, 14, 10), hair, 0, 1.07, -0.02);
-    hairMesh.scale.set(1, 1.05, 0.92); g.add(hairMesh);
-    // Same position as chair (south side of desk)
-    g.position.set(position.x, 0, position.z + 0.65);
-    scene.add(g);
-    buildNameplate(scene, isAlpha, position);
 }
 
 /* ═══════════════════════════════════════════
@@ -672,15 +653,16 @@ function buildPlants(scene) {
    ═══════════════════════════════════════════ */
 
 function buildWallArt(scene) {
+    // Place art on the SOUTH wall above doorway (not north wall — windows are there)
     [0x8899aa, 0xa89070, 0x708888].forEach((color, i) => {
         const x = -5 + i * 5;
         const at = noiseTex(color, 20, 64);
         const am = new THREE.MeshStandardMaterial({ map: at, roughness: 0.6 });
-        addMesh(scene, bx(1.3, 0.9, 0.02), am, x, 3.5, -7.88);
-        addMesh(scene, bx(1.4, 0.04, 0.04), M.wbFrame, x, 3.97, -7.86);
-        addMesh(scene, bx(1.4, 0.04, 0.04), M.wbFrame, x, 3.03, -7.86);
-        addMesh(scene, bx(0.04, 0.98, 0.04), M.wbFrame, x - 0.68, 3.5, -7.86);
-        addMesh(scene, bx(0.04, 0.98, 0.04), M.wbFrame, x + 0.68, 3.5, -7.86);
+        addMesh(scene, bx(1.3, 0.9, 0.02), am, x, 3.5, 7.88);
+        addMesh(scene, bx(1.4, 0.04, 0.04), M.wbFrame, x, 3.97, 7.86);
+        addMesh(scene, bx(1.4, 0.04, 0.04), M.wbFrame, x, 3.03, 7.86);
+        addMesh(scene, bx(0.04, 0.98, 0.04), M.wbFrame, x - 0.68, 3.5, 7.86);
+        addMesh(scene, bx(0.04, 0.98, 0.04), M.wbFrame, x + 0.68, 3.5, 7.86);
     });
 }
 
