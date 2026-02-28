@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { setupLighting } from './lighting.js';
 import { PlayerController } from './player.js';
-import { buildOffice, AGENT_POSITIONS } from './office.js';
+import { buildOffice, AGENT_POSITIONS, getAnimationMixers } from './office.js';
 import { ProximitySystem } from './proximity.js';
 import { DashboardUI } from './chatUI.js';
 import { TaskBoardManager } from './taskBoard.js';
@@ -144,6 +144,13 @@ function animate() {
     const delta = clock.getDelta();
     player.update(delta);
     proximity.update();
+
+    // Update character animations
+    const mixers = getAnimationMixers();
+    for (const mixer of mixers) {
+        mixer.update(delta);
+    }
+
     renderer.render(scene, camera);
 }
 
