@@ -275,7 +275,13 @@ export class DashboardUI {
   }
 
   _initClose() {
-    this.container.querySelector('#dash-close').addEventListener('click', () => this.close());
+    this.container.querySelector('#dash-close').addEventListener('click', () => {
+      this.close();
+      const canvas = document.getElementById('game-canvas');
+      if (document.pointerLockElement !== canvas) {
+        canvas.requestPointerLock();
+      }
+    });
   }
 
   _initChat() {
@@ -503,8 +509,8 @@ export class DashboardUI {
     this.isOpen = false;
     this.activeAgent = null;
     this.container.classList.add('hidden');
-    const canvas = document.getElementById('game-canvas');
-    if (canvas) setTimeout(() => canvas.requestPointerLock(), 100);
+    // We let main.js or player.js handle pointer lock after closing the UI
+    // to avoid race conditions with UI clicks.
   }
 
   addMessage(agentId, type, text) {

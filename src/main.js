@@ -117,12 +117,20 @@ dashboard.onCreateTask = async (agentId, description, priority) => {
 
 // ── ESC key handling ──
 document.addEventListener('keydown', (e) => {
-    if (e.code === 'Escape') {
-        if (dashboard.isOpen) {
-            dashboard.close();
-        } else if (player.isLocked || pauseMenu.isOpen) {
-            pauseMenu.toggle();
-        }
+    if (e.code !== 'Escape') return;
+    e.preventDefault();
+    if (dashboard.isOpen) {
+        dashboard.close();
+        player.lock();
+        return;
+    }
+    const startOverlay = document.getElementById('start-overlay');
+    const inGame = startOverlay && startOverlay.classList.contains('hidden');
+    if (pauseMenu.isOpen) {
+        pauseMenu.close();
+        player.lock();
+    } else if (inGame) {
+        pauseMenu.open();
     }
 });
 

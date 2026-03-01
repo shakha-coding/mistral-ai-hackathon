@@ -55,7 +55,14 @@ export class PlayerController {
 
     _initPointerLock() {
         this.canvas.addEventListener('click', () => {
-            if (!this.isLocked) this.canvas.requestPointerLock();
+            const dashboard = document.getElementById('dashboard-container');
+            const pauseMenu = document.getElementById('pause-menu');
+            const dashboardOpen = dashboard && !dashboard.classList.contains('hidden');
+            const pauseOpen = pauseMenu && !pauseMenu.classList.contains('hidden');
+            
+            if (!this.isLocked && !dashboardOpen && !pauseOpen) {
+                this.canvas.requestPointerLock();
+            }
         });
 
         document.addEventListener('pointerlockchange', () => {

@@ -6,27 +6,24 @@
  */
 
 export class PauseMenu {
-    constructor(player) {
-        this.player = player;
-        this.isOpen = false;
-        this._buildHTML();
-        this._initListeners();
-    }
+  constructor(player) {
+    this.player = player;
+    this.isOpen = false;
+    this._buildHTML();
+    this._initListeners();
+  }
 
-    _buildHTML() {
-        this.overlay = document.createElement('div');
-        this.overlay.id = 'pause-menu';
-        this.overlay.className = 'pause-overlay hidden';
-        this.overlay.innerHTML = `
+  _buildHTML() {
+    this.overlay = document.createElement('div');
+    this.overlay.id = 'pause-menu';
+    this.overlay.className = 'pause-overlay hidden';
+    this.overlay.innerHTML = `
       <div class="pause-panel">
         <h2 class="pause-title">PAUSED</h2>
         <p class="pause-subtitle">Corporate Office Simulator</p>
         <div class="pause-buttons">
           <button class="pause-btn resume" id="pause-resume">
             <span class="btn-icon">▶</span> Resume
-          </button>
-          <button class="pause-btn settings" id="pause-settings">
-            <span class="btn-icon">⚙</span> Settings
           </button>
           <button class="pause-btn quit" id="pause-quit">
             <span class="btn-icon">✕</span> Quit to Menu
@@ -40,44 +37,44 @@ export class PauseMenu {
         </div>
       </div>
     `;
-        document.body.appendChild(this.overlay);
-    }
+    document.body.appendChild(this.overlay);
+  }
 
-    _initListeners() {
-        document.getElementById('pause-resume').addEventListener('click', () => this.close());
-        document.getElementById('pause-settings').addEventListener('click', () => {
-            // Placeholder for future settings
-            alert('Settings coming soon!');
-        });
-        document.getElementById('pause-quit').addEventListener('click', () => {
-            this.close();
-            this.player.unlock();
-            const overlay = document.getElementById('start-overlay');
-            if (overlay) {
-                overlay.classList.remove('hidden');
-            }
-        });
-    }
+  _initListeners() {
+    document.getElementById('pause-resume').addEventListener('click', () => {
+      this.close();
+      this.player.lock();
+    });
+    document.getElementById('pause-quit').addEventListener('click', () => {
+      this.isOpen = false;
+      this.overlay.classList.add('hidden');
+      this.player.paused = false;
+      const overlay = document.getElementById('start-overlay');
+      if (overlay) {
+        overlay.classList.remove('hidden');
+      }
+    });
+  }
 
-    open() {
-        if (this.isOpen) return;
-        this.isOpen = true;
-        this.overlay.classList.remove('hidden');
-        this.player.paused = true;
-        document.exitPointerLock();
-    }
+  open() {
+    if (this.isOpen) return;
+    this.isOpen = true;
+    this.overlay.classList.remove('hidden');
+    this.player.paused = true;
+    document.exitPointerLock();
+  }
 
-    close() {
-        if (!this.isOpen) return;
-        this.isOpen = false;
-        this.overlay.classList.add('hidden');
-        this.player.paused = false;
-        const canvas = document.getElementById('game-canvas');
-        if (canvas) setTimeout(() => canvas.requestPointerLock(), 100);
-    }
+  close() {
+    if (!this.isOpen) return;
+    this.isOpen = false;
+    this.overlay.classList.add('hidden');
+    this.player.paused = false;
+    // We let main.js or player.js handle pointer lock after closing the UI
+    // to avoid race conditions with UI clicks.
+  }
 
-    toggle() {
-        if (this.isOpen) this.close();
-        else this.open();
-    }
+  toggle() {
+    if (this.isOpen) this.close();
+    else this.open();
+  }
 }
