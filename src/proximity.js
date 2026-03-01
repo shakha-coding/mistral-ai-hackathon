@@ -9,7 +9,7 @@ import { AGENT_POSITIONS } from './office.js';
  * ============================================
  */
 
-const INTERACTION_RADIUS = 3.5;  // Distance in world units to trigger proximity
+const INTERACTION_RADIUS = 4.5;  // Increased from 3.5 for more lenient interaction
 const CHAT_RADIUS = 2.5;         // Closer radius for auto-showing hint
 
 export class ProximitySystem {

@@ -61,7 +61,7 @@ proximity.on('enterProximity', ({ agentId }) => {
 });
 
 proximity.on('exitProximity', ({ agentId }) => {
-    dashboard.hideHint();
+    dashboard.hideHint(agentId);
     if (dashboard.isOpen && dashboard.activeAgent === agentId) {
         dashboard.close();
     }

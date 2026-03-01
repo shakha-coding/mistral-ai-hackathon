@@ -144,7 +144,6 @@ export function buildOffice(scene) {
     buildWaterCooler(scene);
     buildCeilingLights(scene);
     buildCoatRack(scene);
-    buildWallArt(scene);
     buildClock(scene);
 
     // Build seated office assistant characters (procedural — reliable & professional)
@@ -197,47 +196,53 @@ function buildSeatedCharacter(scene, agentId, deskPos) {
     // ── Neck ──
     g.add(mesh(cy(0.04, 0.035, 0.08, 10), skin, 0, seatY + 0.45, 0));
 
-    // ── Head ──
-    const head = mesh(sp(0.1, 20, 16), skin, 0, seatY + 0.56, 0);
-    head.scale.set(0.9, 1.0, 0.88); g.add(head);
+    // ── Head ── facing north (toward monitor) so player sees the face from south
+    const headGroup = new THREE.Group();
+    headGroup.position.set(0, seatY + 0.56, 0);
+    // Head faces monitor (North) by default in this group setup
 
-    // ── Eyes ──
+    const head = mesh(sp(0.1, 20, 16), skin, 0, 0, 0);
+    head.scale.set(0.9, 1.0, 0.88); headGroup.add(head);
+
+    // ── Eyes ── facing North (-Z)
     const eyeMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.2 });
     const pupilMat = new THREE.MeshStandardMaterial({
         color: isAlpha ? 0x3070b0 : 0x201a10, roughness: 0.1
     });
     [-1, 1].forEach(s => {
-        g.add(mesh(sp(0.018, 8, 6), eyeMat, s * 0.032, seatY + 0.58, 0.07));
-        g.add(mesh(sp(0.01, 6, 5), pupilMat, s * 0.032, seatY + 0.58, 0.082));
+        headGroup.add(mesh(sp(0.018, 8, 6), eyeMat, s * 0.032, 0.02, -0.07));
+        headGroup.add(mesh(sp(0.01, 6, 5), pupilMat, s * 0.032, 0.02, -0.082));
     });
 
     // ── Lips ──
-    const lips = mesh(bx(0.035, 0.012, 0.015), lip, 0, seatY + 0.505, 0.08);
-    lips.scale.set(1.2, 1, 1); g.add(lips);
+    const lips = mesh(bx(0.035, 0.012, 0.015), lip, 0, -0.055, -0.08);
+    lips.scale.set(1.2, 1, 1); headGroup.add(lips);
 
     // ── Nose ──
-    g.add(mesh(bx(0.015, 0.025, 0.02), skin, 0, seatY + 0.545, 0.085));
+    headGroup.add(mesh(bx(0.015, 0.025, 0.02), skin, 0, -0.015, -0.085));
 
     // ── Hair ──
     if (isAlpha) {
         // Sophia: blonde, shoulder-length
-        const hairTop = mesh(sp(0.105, 16, 12), hair, 0, seatY + 0.59, -0.01);
-        hairTop.scale.set(1.02, 1.06, 0.95); g.add(hairTop);
+        const hairTop = mesh(sp(0.105, 16, 12), hair, 0, 0.03, 0.03);
+        hairTop.scale.set(1.02, 1.06, 0.95); headGroup.add(hairTop);
         // Side hair flowing down
         [-1, 1].forEach(s => {
-            g.add(mesh(bx(0.04, 0.18, 0.06), hair, s * 0.08, seatY + 0.45, -0.02));
+            headGroup.add(mesh(bx(0.04, 0.18, 0.06), hair, s * 0.08, -0.11, 0.04));
         });
         // Back hair
-        g.add(mesh(bx(0.12, 0.2, 0.05), hair, 0, seatY + 0.44, -0.06));
+        headGroup.add(mesh(bx(0.12, 0.2, 0.05), hair, 0, -0.12, 0.07));
     } else {
         // Yuki: black, up in a bun
-        const hairTop = mesh(sp(0.108, 16, 12), hair, 0, seatY + 0.59, -0.015);
-        hairTop.scale.set(1.0, 1.04, 0.93); g.add(hairTop);
+        const hairTop = mesh(sp(0.108, 16, 12), hair, 0, 0.03, 0.035);
+        hairTop.scale.set(1.0, 1.04, 0.93); headGroup.add(hairTop);
         // Bun on top
-        g.add(mesh(sp(0.06, 10, 8), hair, 0, seatY + 0.7, -0.03));
+        headGroup.add(mesh(sp(0.06, 10, 8), hair, 0, 0.14, 0.04));
         // Bangs
-        g.add(mesh(bx(0.14, 0.03, 0.04), hair, 0, seatY + 0.63, 0.06));
+        headGroup.add(mesh(bx(0.14, 0.03, 0.04), hair, 0, 0.07, -0.065));
     }
+
+    g.add(headGroup);
 
     // ── Upper arms ── resting on desk, bent at elbows
     [-1, 1].forEach(s => {
@@ -511,8 +516,7 @@ function buildDoor(scene, x, z, rotY) {
     g.add(mesh(cy(0.015, 0.015, 0.12, 8), M.doorHandle, 0.35, 1.0, 0.06));
     // Lock plate
     g.add(mesh(bx(0.04, 0.12, 0.02), M.doorHandle, 0.35, 1.0, 0.04));
-    // Small window in door
-    g.add(mesh(bx(0.3, 0.35, 0.02), M.glass, 0, 1.8, 0.04));
+    // Small window in door removed as requested (windows up the door)
 
     g.position.set(x, 0, z);
     g.rotation.y = rotY;
@@ -648,23 +652,7 @@ function buildPlants(scene) {
     });
 }
 
-/* ═══════════════════════════════════════════
-   WALL ART & CLOCK
-   ═══════════════════════════════════════════ */
 
-function buildWallArt(scene) {
-    // Place art on the SOUTH wall above doorway (not north wall — windows are there)
-    [0x8899aa, 0xa89070, 0x708888].forEach((color, i) => {
-        const x = -5 + i * 5;
-        const at = noiseTex(color, 20, 64);
-        const am = new THREE.MeshStandardMaterial({ map: at, roughness: 0.6 });
-        addMesh(scene, bx(1.3, 0.9, 0.02), am, x, 3.5, 7.88);
-        addMesh(scene, bx(1.4, 0.04, 0.04), M.wbFrame, x, 3.97, 7.86);
-        addMesh(scene, bx(1.4, 0.04, 0.04), M.wbFrame, x, 3.03, 7.86);
-        addMesh(scene, bx(0.04, 0.98, 0.04), M.wbFrame, x - 0.68, 3.5, 7.86);
-        addMesh(scene, bx(0.04, 0.98, 0.04), M.wbFrame, x + 0.68, 3.5, 7.86);
-    });
-}
 
 function buildClock(scene) {
     const cf = new THREE.Mesh(cy(0.2, 0.2, 0.025, 28),
